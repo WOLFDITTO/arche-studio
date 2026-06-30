@@ -2,94 +2,94 @@
 import { useEffect, useRef } from 'react';
 
 export default function CustomCursor() {
-  const dotRef = useRef<HTMLDivElement>(null);
+  const dotRef  = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const dot = dotRef.current;
+    const dot  = dotRef.current;
     const ring = ringRef.current;
     if (!dot || !ring) return;
 
-    let mx = window.innerWidth / 2;
-    let my = window.innerHeight / 2;
-    let rx = mx;
-    let ry = my;
+    let mx = -100, my = -100;
+    let rx = -100, ry = -100;
     let rafId: number;
-    let enlarged = false;
 
-    const move = (e: MouseEvent) => {
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+    /* track exact cursor position for the dot */
+    const onMove = (e: MouseEvent) => {
       mx = e.clientX;
       my = e.clientY;
       dot.style.transform = `translate(${mx - 3}px, ${my - 3}px)`;
     };
 
-    const lerp = (a: number, b: number, n: number) => a + (b - a) * n;
-
-    const loop = () => {
-      rx = lerp(rx, mx, 0.12);
-      ry = lerp(ry, my, 0.12);
-      const hw = enlarged ? 24 : 16;
-      ring.style.transform = `translate(${rx - hw}px, ${ry - hw}px)`;
-      rafId = requestAnimationFrame(loop);
+    /* lag the ring behind the dot */
+    const tick = () => {
+      rx = lerp(rx, mx, 0.1);
+      ry = lerp(ry, my, 0.1);
+      ring.style.transform = `translate(${rx - 16}px, ${ry - 16}px)`;
+      rafId = requestAnimationFrame(tick);
     };
 
-    const enter = () => {
-      enlarged = true;
-      ring.style.scale = '1.5';
+    /* hover state for links / buttons */
+    const onEnter = () => {
+      ring.style.scale = '1.6';
       ring.style.borderColor = 'var(--accent)';
       dot.style.opacity = '0';
     };
-
-    const leave = () => {
-      enlarged = false;
+    const onLeave = () => {
       ring.style.scale = '1';
       ring.style.borderColor = 'rgba(232,228,220,0.45)';
       dot.style.opacity = '1';
     };
 
-    const bindLinks = () => {
+    const bindHover = () => {
       document.querySelectorAll('a, button').forEach(el => {
-        el.addEventListener('mouseenter', enter);
-        el.addEventListener('mouseleave', leave);
+        el.addEventListener('mouseenter', onEnter);
+        el.addEventListener('mouseleave', onLeave);
       });
     };
 
-    document.addEventListener('mousemove', move);
-    rafId = requestAnimationFrame(loop);
-    bindLinks();
+    document.addEventListener('mousemove', onMove);
+    rafId = requestAnimationFrame(tick);
+    bindHover();
 
-    const observer = new MutationObserver(bindLinks);
-    observer.observe(document.body, { childList: true, subtree: true });
+    const mo = new MutationObserver(bindHover);
+    mo.observe(document.body, { childList: true, subtree: true });
 
     return () => {
-      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mousemove', onMove);
       cancelAnimationFrame(rafId);
-      observer.disconnect();
+      mo.disconnect();
     };
   }, []);
 
   return (
     <>
+      {/* dot — snaps instantly to cursor */}
       <div
         ref={dotRef}
         aria-hidden
         style={{
-          position: 'fixed', top: 0, left: 0, zIndex: 99999,
+          position: 'fixed', top: 0, left: 0,
           width: 6, height: 6,
           background: 'var(--fg)', borderRadius: '50%',
-          pointerEvents: 'none',
-          transition: 'opacity 0.15s',
+          pointerEvents: 'none', zIndex: 99999,
+          transition: 'opacity 0.2s',
+          willChange: 'transform',
         }}
       />
+      {/* ring — lags behind with lerp */}
       <div
         ref={ringRef}
         aria-hidden
         style={{
-          position: 'fixed', top: 0, left: 0, zIndex: 99998,
+          position: 'fixed', top: 0, left: 0,
           width: 32, height: 32,
           border: '1px solid rgba(232,228,220,0.45)', borderRadius: '50%',
-          pointerEvents: 'none',
-          transition: 'scale 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s',
+          pointerEvents: 'none', zIndex: 99998,
+          transition: 'scale 0.35s cubic-bezier(0.16,1,0.3,1), border-color 0.25s',
+          willChange: 'transform',
         }}
       />
     </>

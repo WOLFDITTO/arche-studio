@@ -17,7 +17,9 @@ export default function MagneticButton({ children, className, style, strength = 
     const rect = el.getBoundingClientRect();
     const dx = (e.clientX - (rect.left + rect.width / 2)) * strength;
     const dy = (e.clientY - (rect.top + rect.height / 2)) * strength;
-    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    // clamp so the button never leaves the viewport horizontally
+    const maxX = Math.min(Math.abs(dx), rect.left, window.innerWidth - rect.right) * Math.sign(dx);
+    el.style.transform = `translate(${maxX}px, ${dy}px)`;
   };
 
   const onMouseLeave = () => {
